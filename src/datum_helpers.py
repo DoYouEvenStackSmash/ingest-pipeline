@@ -56,8 +56,18 @@ def extract_datum(dataset_buf):
   """
   return [dataset_buf.Data(j) for j in range(dataset_buf.DataLength())]
 
-    
-def assemble_matrix(matrix_buf):
+def extract_params(dataset_buf):
+  """Helper function for extracting params
+
+  Args:
+      dataset_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  return dataset_buf.Params()
+
+def assemble_matrix(matrix_buf,dims):
   """Helper function for building a matrix tensor from a matrix buf
 
   Args:
@@ -72,12 +82,12 @@ def assemble_matrix(matrix_buf):
             [
                 get_complex_pixels(
                     matrix_buf.RealPixelsAsNumpy(), matrix_buf.ImagPixelsAsNumpy()
-                ).reshape((128, 128))
+                ).reshape((dims, dims))
             ]
         )
     )
   
-def extract_matrices_from_buf(datum_buf):
+def extract_matrices_from_buf(datum_buf, dims):
   """Helper function for extracting matrices from a datum buffer
 
   Args:
@@ -86,8 +96,9 @@ def extract_matrices_from_buf(datum_buf):
   Returns:
       _type_: _description_
   """
-  mat1 = assemble_matrix(datum_buf.M1())
-  mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2())
+  dims = np.sqrt(datum_buf.M1().RealPixelsLength())
+  mat1 = assemble_matrix(datum_buf.M1(), int(dims))
+  mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2(),int(dims))
   return [mat1,mat2]
 
 def extract_matrices_from_datumT(datumT):
@@ -99,8 +110,9 @@ def extract_matrices_from_datumT(datumT):
   Returns:
       _type_: _description_
   """
-  mat1 = assemble_matrix(datum.m1)
-  mat2 = torch.tensor(1) if datum.m2 == None else assemble_matrix(datum.m2)
+  dims = np.sqrt(len(datumT.m1.realPixels))
+  mat1 = assemble_matrix(datumT.m1,dims)
+  mat2 = torch.tensor(1) if datumT.m2 == None else assemble_matrix(datumT.m2,dims)
   return [mat1,mat2]
   
 def lift_datum_buf_to_datumT(datum_buf):
