@@ -67,6 +67,17 @@ def extract_params(dataset_buf):
   """
   return dataset_buf.Params()
 
+def extract_image_dims(params_buf):
+  """Extractor for image dimensions as a numpy array
+
+  Args:
+      params_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  return params_buf.ImgDimsAsNumpy()
+
 def assemble_matrix(matrix_buf,dims):
   """Helper function for building a matrix tensor from a matrix buf
 
@@ -82,7 +93,7 @@ def assemble_matrix(matrix_buf,dims):
             [
                 get_complex_pixels(
                     matrix_buf.RealPixelsAsNumpy(), matrix_buf.ImagPixelsAsNumpy()
-                ).reshape((dims, dims))
+                ).reshape((dims[0], dims[1]))
             ]
         )
     )
@@ -96,9 +107,8 @@ def extract_matrices_from_buf(datum_buf, dims):
   Returns:
       _type_: _description_
   """
-  dims = np.sqrt(datum_buf.M1().RealPixelsLength())
-  mat1 = assemble_matrix(datum_buf.M1(), int(dims))
-  mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2(),int(dims))
+  mat1 = assemble_matrix(datum_buf.M1(), dims)
+  mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2(),dims)
   return [mat1,mat2]
 
 def extract_matrices_from_datumT(datumT):
@@ -110,12 +120,13 @@ def extract_matrices_from_datumT(datumT):
   Returns:
       _type_: _description_
   """
-  dims = np.sqrt(len(datumT.m1.realPixels))
-  mat1 = assemble_matrix(datumT.m1,dims)
-  mat2 = torch.tensor(1) if datumT.m2 == None else assemble_matrix(datumT.m2,dims)
+  shape = [int(i) for i in datumT.m1.shape]
+  print(shape)
+  mat1 = datumT.m1
+  mat2 = torch.tensor(1) if datumT.m2 == None else datumT.m2
   return [mat1,mat2]
   
-def lift_datum_buf_to_datumT(datum_buf):
+def lift_datum_buf_to_datumT(datum_buf,params_buf):
   """helper function for lifting the datum buffer into objects
 
   Args:
@@ -124,10 +135,12 @@ def lift_datum_buf_to_datumT(datum_buf):
   Returns:
       _type_: _description_
   """
-  datum_list = [DatumT()] * len(datum_buf)
+  dims = [int(i) for i in extract_image_dims(params_buf)]
+  datum_list = []
   for datum_idx, datum in enumerate(datum_buf):
     data_t = DatumT()
-    datum_list[datum_idx].m1,datum_list[datum_idx].m2 = extract_matrices_from_buf(datum)
+    data_t.m1,data_t.m2 = extract_matrices_from_buf(datum,dims)
+    datum_list.append(data_t)
   return datum_list
 
 def apply_d1m2_to_d2m1(D1,D2):
@@ -163,7 +176,7 @@ def complex_tensor_to_components(complex_tensor):
   imagPixels = None
   complex_tensor = complex_tensor.reshape(-1, 1)
   realPixels = [torch.real(val) for val in complex_tensor]
-  if type(i[0]) == complex:
+  if type(complex_tensor[0]) == complex:
       imagPixels = [torch.imag(val) for val in complex_tensor]
   else:
       imagPixels = [0] * len(realPixels)
@@ -177,10 +190,10 @@ def mat_to_matrixT(mat, datatype=0,dataspace=0):
       mat_pair (_type_): _description_
   """
   
-  if mat == torch.tensor(1):
+  if torch.equal(mat,torch.tensor(1)):
     return None
 
-  mT = matrixT()
+  mT = MatrixT()
   mT.realPixels, mT.imagPixels = complex_tensor_to_components(mat)
   mT.dataType = datatype
   mT.dataSpace = dataspace

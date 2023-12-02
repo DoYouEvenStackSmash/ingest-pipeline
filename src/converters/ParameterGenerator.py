@@ -10,7 +10,7 @@ def generate_interval(field):
     """
     Generates an array of S evenly spaced values, or returns None/val if there's only a single element
     """
-    print(field)
+    # print(field)
     if field == None:
         return None
     if type(field) != list:
@@ -38,6 +38,13 @@ def parse_triplet(arg):
     except ValueError:
         raise argparse.ArgumentTypeError("Invalid triplet format. Use [L, U, S].")
 
+def parse_xy(arg):
+    values = list(map(float, arg.strip("[]").split(",")))
+    print(values)
+    if len(values) == 1:
+        return [values[0],values[0]]
+    else:
+        return [values[0],values[1]]
 
 def create_parameterT_from_args(args):
     """
@@ -46,7 +53,10 @@ def create_parameterT_from_args(args):
     po = ParametersT()
     for k, v in vars(args).items():
         # print(k)
-        setattr(po, k, generate_interval(v))
+        if len(v) != 2:
+            setattr(po, k, generate_interval(v))
+        else:
+            setattr(po,k,v)
 
     return po
 
@@ -73,7 +83,7 @@ def main():
     parser.add_argument("-d", "--defocus", type=parse_triplet, help="Defocus field")
     parser.add_argument("-bf", "--bFactor", type=parse_triplet, help="B Factor field")
     parser.add_argument(
-        "-id", "--imgDims", type=parse_triplet, help="Image Dimensions field"
+        "-id", "--imgDims", type=parse_xy, help="Image Dimensions field"
     )
     parser.add_argument(
         "-np", "--numPixels", type=parse_triplet, help="Number of Pixels field"
