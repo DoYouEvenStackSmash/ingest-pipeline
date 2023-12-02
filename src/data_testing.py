@@ -63,10 +63,22 @@ for m in mats:
   
   # construct datumT object from pair of matrixT objects
   datumT = matrixT_pair_to_datumT([matrixT1, matrixT2])
-  
+  print(datumT.m1.realPixels)
   datum_arr.append(datumT)
 
 # for d in datum_arr:
 #   print(d.m1)
 #   print(d.m2)
-  
+torch.manual_seed(42)
+
+mat1 = torch.randint(0, 101, (2, 1))
+mat2 = torch.tensor(1)
+print(mat1)
+# comp_val = complex_tensor_to_components(val)
+# comp_val[1] = comp_val[1].view(1,2,1)
+
+matT_val = [mat_to_matrixT(mat1), mat_to_matrixT(mat2)]
+print(matT_val[0].realPixels)
+datumT_val = matrixT_pair_to_datumT(matT_val)
+print(datumT.m1.realPixels)
+

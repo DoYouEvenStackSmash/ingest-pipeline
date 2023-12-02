@@ -179,7 +179,7 @@ def complex_tensor_to_components(complex_tensor):
   if type(complex_tensor[0]) == complex:
       imagPixels = [torch.imag(val) for val in complex_tensor]
   else:
-      imagPixels = [0] * len(realPixels)
+      imagPixels = [torch.zeros(1) for _ in complex_tensor]
   
   return realPixels, imagPixels
       
