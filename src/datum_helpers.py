@@ -49,10 +49,10 @@ def extract_datum(dataset_buf):
   """Helper function for extracting the list of datum from the dataset buf
 
   Args:
-      dataset_buf (_type_): _description_
+      dataset_buf (flatbuffer): bytearray contining the dataset
 
   Returns:
-      _type_: _description_
+      list of data bytearrays
   """
   return [dataset_buf.Data(j) for j in range(dataset_buf.DataLength())]
 
@@ -60,10 +60,10 @@ def extract_params(dataset_buf):
   """Helper function for extracting params
 
   Args:
-      dataset_buf (_type_): _description_
+      dataset_buf (flatbuffer): bytearray contining the dataset
 
   Returns:
-      _type_: _description_
+      Parameters bytearray
   """
   return dataset_buf.Params()
 
@@ -71,10 +71,10 @@ def extract_image_dims(params_buf):
   """Extractor for image dimensions as a numpy array
 
   Args:
-      params_buf (_type_): _description_
+      params_buf (flatbuffer): bytearray containing parameters
 
   Returns:
-      _type_: _description_
+      numpy array containing [x,y,...] dimensions
   """
   return params_buf.ImgDimsAsNumpy()
 
@@ -82,10 +82,10 @@ def assemble_matrix(matrix_buf,dims):
   """Helper function for building a matrix tensor from a matrix buf
 
   Args:
-      matrix_buf (_type_): _description_
+      matrix_buf (list of flatbuffers): list of Matrix bytearrays
 
   Returns:
-      _type_: _description_
+      torch tensor: a torch tensor of shape (TODO shape)
   """
   get_complex_pixels = lambda rp, ip: rp + 1j * ip
   return torch.tensor(
@@ -102,10 +102,10 @@ def extract_matrices_from_buf(datum_buf, dims):
   """Helper function for extracting matrices from a datum buffer
 
   Args:
-      datum_buf (_type_): _description_
+      datum_buf (list of flatbuffers): list of bytearrays of Datum objecs
 
   Returns:
-      _type_: _description_
+      [tensor, tensor]: pair of tensors of type=complex 
   """
   mat1 = assemble_matrix(datum_buf.M1(), dims)
   mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2(),dims)
@@ -115,10 +115,10 @@ def extract_matrices_from_datumT(datumT):
   """Helper function for extracting matrices from a datumT
 
   Args:
-      datumT (_type_): _description_
+      datumT (DatumT): DatumT object
 
   Returns:
-      _type_: _description_
+      [tensor, tensor]: pair of tensors of type=complex 
   """
   shape = [int(i) for i in datumT.m1.shape]
   print(shape)
@@ -130,10 +130,10 @@ def lift_datum_buf_to_datumT(datum_buf,params_buf):
   """helper function for lifting the datum buffer into objects
 
   Args:
-      datum_buf (_type_): _description_
+      datum_buf (flatbuffer): a list of Datum flatbuffers
 
   Returns:
-      _type_: _description_
+      datum_list (list of DatumT): a list of DatumT objects
   """
   dims = [int(i) for i in extract_image_dims(params_buf)]
   datum_list = []
@@ -144,14 +144,14 @@ def lift_datum_buf_to_datumT(datum_buf,params_buf):
   return datum_list
 
 def apply_d1m2_to_d2m1(D1,D2):
-  """sorta like matrix multiplication except not really
+  """Function for in-situ modulation of D2.m1 tensor
 
   Args:
-      D1 (_type_): _description_
-      D2 (_type_): _description_
+      D1 (DatumT): DatumT acting as a modifier
+      D2 (DatumT): DatumT to be modified
 
   Returns:
-      _type_: _description_
+      tensor: result of multiply_matrices
   """
   return multiply_matrices([D2.m1,D1.m2])
 
@@ -159,18 +159,24 @@ def multiply_matrices(mat_pair):
   """helper function for multiplying matrices in the synthesis fashion
 
   Args:
-      mat_pair (_type_): _description_
+      mat_pair (list of tensors): a pair of tensors
 
   Returns:
-      _type_: _description_
+      tensor: element-wise product of the pair of tensors
   """
   if not len(mat_pair[1].shape):
     return mat_pair[0] * mat_pair[1]
   return torch.matmul(mat_pair[0], mat_pair[1])
   
 def complex_tensor_to_components(complex_tensor):
-  """
-  Helper function for turning a complex tensor into serializable floats
+  """Turns a complex tensor into two arrays of serializable floats
+
+  Args:
+      complex_tensor (_type_): a tensor containing complex numbers
+
+  Returns:
+      realPixels, imagPixels: list of torch tensors which can be added to yield complex
+      numbers in rectangular form
   """
   realPixels = None
   imagPixels = None
@@ -184,10 +190,10 @@ def complex_tensor_to_components(complex_tensor):
   return realPixels, imagPixels
       
 def mat_to_matrixT(mat, datatype=0,dataspace=0):
-  """create a matrix object to wrap a complex tensor
+  """ Create a MatrixT object from a torch tensor
 
   Args:
-      mat_pair (_type_): _description_
+      mat_pair (list of torch tensors containing complex numbers): _description_
   """
   
   if torch.equal(mat,torch.tensor(1)):
@@ -200,13 +206,13 @@ def mat_to_matrixT(mat, datatype=0,dataspace=0):
   return mT
 
 def matrixT_pair_to_datumT(mat_pair):
-  """wrapper for turning matrixT pair into DatumT
+  """Create a DatumT object from a pair of MatrixT objects
 
   Args:
-      mat_pair (_type_): _description_
+      mat_pair (list of matrixT objects): _description_
 
   Returns:
-      _type_: _description_
+      DatumT: DatumT object
   """
   dt = DatumT()
   dt.m1 = mat_pair[0]
