@@ -145,6 +145,23 @@ def lift_datum_buf_to_datumT(datum_buf,params_buf):
     datum_list.append(data_t)
   return datum_list
 
+def jax_assemble_matrix(matrix_buf,dims):
+  """Helper function for building a matrix tensor from a matrix buf
+
+  Args:
+      matrix_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  get_complex_pixels = lambda rp, ip: rp + 1j * ip
+
+  real_pixels = matrix_buf.RealPixelsAsNumpy()
+  imag_pixels = matrix_buf.ImagPixelsAsNumpy()
+  complex_pixels = get_complex_pixels(real_pixels, imag_pixels)
+
+  return jnp.array(complex_pixels.reshape((dims[0], dims[1])))
+
 def jax_extract_matrices_from_buf(datum_buf, dims):
   """Helper function for extracting matrices from a datum buffer
 
@@ -154,8 +171,8 @@ def jax_extract_matrices_from_buf(datum_buf, dims):
   Returns:
       _type_: _description_
   """
-  mat1 = assemble_matrix(datum_buf.M1(), dims)
-  mat2 = jnp.array(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2(),dims)
+  mat1 = jax_assemble_matrix(datum_buf.M1(), dims)
+  mat2 = jnp.array(1) if datum_buf.M2() == None else jax_assemble_matrix(datum_buf.M2(),dims)
   return [mat1,mat2]
 
 def jax_extract_matrices_from_datumT(datumT):
