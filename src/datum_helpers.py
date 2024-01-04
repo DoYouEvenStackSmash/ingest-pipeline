@@ -4,6 +4,8 @@ import sys
 import argparse
 import torch
 
+import jax
+import jax.numpy as jnp
 sys.path.append("./converters")
 sys.path.append("./generators")
 sys.path.append("../")
@@ -56,8 +58,29 @@ def extract_datum(dataset_buf):
   """
   return [dataset_buf.Data(j) for j in range(dataset_buf.DataLength())]
 
-    
-def assemble_matrix(matrix_buf):
+def extract_params(dataset_buf):
+  """Helper function for extracting params
+
+  Args:
+      dataset_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  return dataset_buf.Params()
+
+def extract_image_dims(params_buf):
+  """Extractor for image dimensions as a numpy array
+
+  Args:
+      params_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  return params_buf.ImgDimsAsNumpy()
+
+def assemble_matrix(matrix_buf,dims):
   """Helper function for building a matrix tensor from a matrix buf
 
   Args:
@@ -72,12 +95,12 @@ def assemble_matrix(matrix_buf):
             [
                 get_complex_pixels(
                     matrix_buf.RealPixelsAsNumpy(), matrix_buf.ImagPixelsAsNumpy()
-                ).reshape((128, 128))
+                ).reshape((dims[0], dims[1]))
             ]
         )
     )
   
-def extract_matrices_from_buf(datum_buf):
+def extract_matrices_from_buf(datum_buf, dims):
   """Helper function for extracting matrices from a datum buffer
 
   Args:
@@ -86,8 +109,8 @@ def extract_matrices_from_buf(datum_buf):
   Returns:
       _type_: _description_
   """
-  mat1 = assemble_matrix(datum_buf.M1())
-  mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2())
+  mat1 = assemble_matrix(datum_buf.M1(), dims)
+  mat2 = torch.tensor(1) if datum_buf.M2() == None else assemble_matrix(datum_buf.M2(),dims)
   return [mat1,mat2]
 
 def extract_matrices_from_datumT(datumT):
@@ -99,11 +122,13 @@ def extract_matrices_from_datumT(datumT):
   Returns:
       _type_: _description_
   """
-  mat1 = assemble_matrix(datum.m1)
-  mat2 = torch.tensor(1) if datum.m2 == None else assemble_matrix(datum.m2)
+  shape = [int(i) for i in datumT.m1.shape]
+  # print(shape)
+  mat1 = datumT.m1
+  mat2 = torch.tensor(1) if datumT.m2 == None else datumT.m2
   return [mat1,mat2]
   
-def lift_datum_buf_to_datumT(datum_buf):
+def lift_datum_buf_to_datumT(datum_buf,params_buf):
   """helper function for lifting the datum buffer into objects
 
   Args:
@@ -112,10 +137,74 @@ def lift_datum_buf_to_datumT(datum_buf):
   Returns:
       _type_: _description_
   """
-  datum_list = [DatumT()] * len(datum_buf)
+  dims = [int(i) for i in extract_image_dims(params_buf)]
+  datum_list = []
   for datum_idx, datum in enumerate(datum_buf):
     data_t = DatumT()
-    datum_list[datum_idx].m1,datum_list[datum_idx].m2 = extract_matrices_from_buf(datum)
+    data_t.m1,data_t.m2 = extract_matrices_from_buf(datum,dims)
+    datum_list.append(data_t)
+  return datum_list
+
+def jax_assemble_matrix(matrix_buf,dims):
+  """Helper function for building a matrix tensor from a matrix buf
+
+  Args:
+      matrix_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  get_complex_pixels = lambda rp, ip: rp + 1j * ip
+
+  real_pixels = matrix_buf.RealPixelsAsNumpy()
+  imag_pixels = matrix_buf.ImagPixelsAsNumpy()
+  complex_pixels = get_complex_pixels(real_pixels, imag_pixels)
+
+  return jnp.array(complex_pixels.reshape((dims[0], dims[1])))
+
+def jax_extract_matrices_from_buf(datum_buf, dims):
+  """Helper function for extracting matrices from a datum buffer
+
+  Args:
+      datum_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  mat1 = jax_assemble_matrix(datum_buf.M1(), dims)
+  mat2 = jnp.array(1) if datum_buf.M2() == None else jax_assemble_matrix(datum_buf.M2(),dims)
+  return [mat1,mat2]
+
+def jax_extract_matrices_from_datumT(datumT):
+  """Helper function for extracting matrices from a datumT
+
+  Args:
+      datumT (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  shape = [int(i) for i in datumT.m1.shape]
+  # print(shape)
+  mat1 = datumT.m1
+  mat2 = jnp.array(1) if datumT.m2 == None else datumT.m2
+  return [mat1,mat2]
+  
+def jax_lift_datum_buf_to_datumT(datum_buf,params_buf):
+  """helper function for lifting the datum buffer into objects
+
+  Args:
+      datum_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  dims = [int(i) for i in extract_image_dims(params_buf)]
+  datum_list = []
+  for datum_idx, datum in enumerate(datum_buf):
+    data_t = DatumT()
+    data_t.m1,data_t.m2 = jax_extract_matrices_from_buf(datum,dims)
+    datum_list.append(data_t)
   return datum_list
 
 def apply_d1m2_to_d2m1(D1,D2):
@@ -142,7 +231,24 @@ def multiply_matrices(mat_pair):
   if not len(mat_pair[1].shape):
     return mat_pair[0] * mat_pair[1]
   return torch.matmul(mat_pair[0], mat_pair[1])
-  
+
+def jax_apply_d1m2_to_d2m1(D1,D2):
+  """sorta like matrix multiplication except not really
+
+  Args:
+      D1 (_type_): _description_
+      D2 (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  return jax_mult_matrices([D2.m1,D1.m2])
+
+def jax_mult_matrices(mat_pair):
+  if not len(mat_pair[1].shape):
+    return mat_pair[0] * mat_pair[1]
+  return jnp.matmul(mat_pair[0], mat_pair[1])
+
 def complex_tensor_to_components(complex_tensor):
   """
   Helper function for turning a complex tensor into serializable floats
@@ -151,10 +257,10 @@ def complex_tensor_to_components(complex_tensor):
   imagPixels = None
   complex_tensor = complex_tensor.reshape(-1, 1)
   realPixels = [torch.real(val) for val in complex_tensor]
-  if type(i[0]) == complex:
+  if type(complex_tensor[0]) == complex:
       imagPixels = [torch.imag(val) for val in complex_tensor]
   else:
-      imagPixels = [0] * len(realPixels)
+      imagPixels = [torch.zeros(1) for _ in complex_tensor]
   
   return realPixels, imagPixels
       
@@ -165,10 +271,10 @@ def mat_to_matrixT(mat, datatype=0,dataspace=0):
       mat_pair (_type_): _description_
   """
   
-  if mat == torch.tensor(1):
+  if torch.equal(mat,torch.tensor(1)):
     return None
 
-  mT = matrixT()
+  mT = MatrixT()
   mT.realPixels, mT.imagPixels = complex_tensor_to_components(mat)
   mT.dataType = datatype
   mT.dataSpace = dataspace
