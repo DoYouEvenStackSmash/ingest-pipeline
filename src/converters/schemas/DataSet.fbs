@@ -3,18 +3,14 @@
 include "Structure.fbs";
 include "ParamModel.fbs";
 namespace DataModel;
-/// context of the data
 enum DataClass : byte {Sim = 0, Synth = 1, Exp = 2}
-/// marker for real space vs freqency space of data
 enum Domain: byte {Real=0,Frequency=1}
-/// denotes whether the data is an image or a filter
 enum DataType : byte {Image=0, Filter=1,Other=2}
 
 /// could be an image or a filter
 table Matrix {
-  /// real components of the matrix
+  /// content of the matrix
   real_pixels:[float];
-  /// imaginary components of the matrix
   imag_pixels:[float];
 
   /// auxiliary in case of image
@@ -29,20 +25,14 @@ table Matrix {
   parent_structure:int;
 }
 
-/// an object of dataset to be used by processes which interact with DataSets
 table Datum {
-  /// primary matrix
   m1:Matrix;
-  /// secondary matrix, often used as a modifier
   m2:Matrix;
-  /// link for a set of parameters
   param_id:int;
 }
 
 table DataSet {
-  /// Data in dataset
   data:[Datum];
-  /// parameters of data
   params:Parameters;
 }
 

@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 
 from datum_helpers import *
 # flatbuffer
-exp_fb = dl.load_flatbuffer("output.fbs")
+exp_fb = dl.load_flatbuffer("exp.bin")
 # dataset buffer
 exp_buf = DataSet.GetRootAsDataSet(exp_fb,0)
 

@@ -48,12 +48,12 @@ def _hidden_matrix1_unpacker(filename):
     return mat
 
 
-def serialize_fbs_datasets(filenames):
+def serialize_fbs_datasets(filenames,typename="images"):
     matrices = np.concatenate(
         np.array([_hidden_matrix1_unpacker(f).numpy() for f in filenames]), axis=0
     )
     print(matrices.shape)
-    np.save("serialized_files.npy", matrices)
+    np.save(f"serialized_{typename}.npy", matrices)
 
 
 def serialize_fbs_dataset(filename):

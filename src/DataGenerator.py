@@ -65,20 +65,11 @@ def _hidden_structure_unpacker(args):
 
 
 def apply_rotation(coordinates, quat_orientation):
-    """Helper function for transforming a point cloud by quaternion orientations
-
-    Args:
-        coordinates (torch tensor): a point cloud represented as a list of x,y,z coordinates
-        quat_orientation (quaternion): a coordinate transform
-
-    Returns:
-        coords: list of newly transformed coordinates
-    """
-    quaternion_matrix = quaternion_to_matrix(quat_orientation)
+    qm = quaternion_to_matrix(quat_orientation)
     coords = [
         torch.matmul(
             torch.tensor(np.array(c, dtype=float).reshape((3, 1)), dtype=torch.float64),
-            quaternion_matrix,
+            qm,
         )
         for c in coordinates
     ]
@@ -133,13 +124,13 @@ def build_data_set(data_batch, params, datatype, dataspace):
         data_T = DatumT()
         m1 = MatrixT()
         i = i.reshape(-1, 1)
-        
+        # print(max(i))
         m1.realPixels = [torch.real(val) for val in i]
         if type(i[0]) == complex:
             m1.imagPixels = [torch.imag(val) for val in i]
         else:
             m1.imagPixels = [0 for val in i]
-
+        # print(m1.imagPixels)
         m1.dataType = datatype
         m1.dataSpace = dataspace
         data_T.m1 = m1
@@ -173,27 +164,10 @@ def images_wrapper(args):
 
 
 def _hidden_dataset_unpacker(filename):
-    """loads a flatbuffer from filename and unpacks it as a dataset
-
-    Args:
-        filename (string): a flatbuffer filename 
-
-    Returns:
-        a Dataset flatbuffer
-    """
     return DataSet.GetRootAsDataSet(dl.load_flatbuffer(filename), 0)
 
 
 def _hidden_matrix1_unpacker(filename):
-    """loads a flatbuffer from filename,unpacks it as a dataset, unpacks the Data objects,
-    creates a torch tensor of all M1 matrices
-
-    Args:
-        filename (string): a flatbuffer filename 
-
-    Returns:
-        torch tensor: matrix M1 as tensor of complex numbers
-    """
     get_data = lambda ds: [ds.Data(j) for j in range(ds.DataLength())]
     get_complex_pixels = lambda rp, ip: rp + 1j * ip
     mat = torch.tensor(
@@ -215,12 +189,12 @@ def _hidden_synthesizer(args):
     get_data = lambda ds: [ds.Data(j) for j in range(ds.DataLength())]
     get_complex_pixels = lambda rp, ip: rp + 1j * ip
 
-    img_matrices = _hidden_matrix1_unpacker(args.images)
-    ctf_matrices = _hidden_matrix1_unpacker(args.ctfs)
+    img_mats = _hidden_matrix1_unpacker(args.images)
+    ctf_mats = _hidden_matrix1_unpacker(args.ctfs)
     params = ParametersT.InitFromObj(_hidden_dataset_unpacker(args.ctfs).Params())
     new_ds = []
-    for i, img in enumerate(img_matrices):
-        new_batch = apply_ctf_batch(img.view(1, 128, 128), ctf_matrices)
+    for i, img in enumerate(img_mats):
+        new_batch = apply_ctf_batch(img.view(1, 128, 128), ctf_mats)
         ds_t = build_data_set(new_batch, params, datatype=2, dataspace=0)
         new_ds.append(ds_t)
 
