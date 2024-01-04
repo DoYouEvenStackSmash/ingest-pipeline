@@ -4,6 +4,8 @@ import sys
 import argparse
 import torch
 
+import jax
+import jax.numpy as jnp
 sys.path.append("./converters")
 sys.path.append("./generators")
 sys.path.append("../")
