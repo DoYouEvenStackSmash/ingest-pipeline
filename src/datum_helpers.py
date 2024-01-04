@@ -121,7 +121,7 @@ def extract_matrices_from_datumT(datumT):
       _type_: _description_
   """
   shape = [int(i) for i in datumT.m1.shape]
-  print(shape)
+  # print(shape)
   mat1 = datumT.m1
   mat2 = torch.tensor(1) if datumT.m2 == None else datumT.m2
   return [mat1,mat2]
@@ -140,6 +140,38 @@ def lift_datum_buf_to_datumT(datum_buf,params_buf):
   for datum_idx, datum in enumerate(datum_buf):
     data_t = DatumT()
     data_t.m1,data_t.m2 = extract_matrices_from_buf(datum,dims)
+    datum_list.append(data_t)
+  return datum_list
+
+def jax_extract_matrices_from_datumT(datumT):
+  """Helper function for extracting matrices from a datumT
+
+  Args:
+      datumT (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  shape = [int(i) for i in datumT.m1.shape]
+  # print(shape)
+  mat1 = datumT.m1
+  mat2 = jnp.array(1) if datumT.m2 == None else datumT.m2
+  return [mat1,mat2]
+  
+def jax_lift_datum_buf_to_datumT(datum_buf,params_buf):
+  """helper function for lifting the datum buffer into objects
+
+  Args:
+      datum_buf (_type_): _description_
+
+  Returns:
+      _type_: _description_
+  """
+  dims = [int(i) for i in extract_image_dims(params_buf)]
+  datum_list = []
+  for datum_idx, datum in enumerate(datum_buf):
+    data_t = DatumT()
+    data_t.m1,data_t.m2 = jax_extract_matrices_from_buf(datum,dims)
     datum_list.append(data_t)
   return datum_list
 
