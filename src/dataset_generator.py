@@ -77,8 +77,8 @@ default_params = {
 }
 
 def generate_tensor_pairs(num_points, dims):
-    torch.manual_seed(42)
-    tensors_list = [[torch.randint(0, 101, dims),torch.tensor(1)] for _ in range(num_points)]
+    torch.manual_seed(50)
+    tensors_list = [[torch.rand(dims),torch.tensor(1)] for _ in range(num_points)]
     return tensors_list
 
 def generate_datumT(tensor_pairs):
