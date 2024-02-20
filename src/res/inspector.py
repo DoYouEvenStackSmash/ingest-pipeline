@@ -28,7 +28,8 @@ from dataloader import Dataloader as dl
 import matplotlib.pyplot as plt
 
 # from DataGenerator import *
-
+CONST_X = 128
+CONST_Y = 128
 
 def _hidden_matrix1_unpacker(filename):
     get_data = lambda ds: [ds.Data(j) for j in range(ds.DataLength())]
@@ -38,7 +39,7 @@ def _hidden_matrix1_unpacker(filename):
             [
                 get_complex_pixels(
                     i.M1().RealPixelsAsNumpy(), i.M1().ImagPixelsAsNumpy()
-                ).reshape((128, 128))
+                ).reshape((CONST_X, CONST_Y))
                 for i in get_data(
                     DataSet.GetRootAsDataSet(dl.load_flatbuffer(filename), 0)
                 )
@@ -63,8 +64,8 @@ def serialize_fbs_dataset(filename):
     )
     for i in data_list.data:
         m1 = i.m1
-        r = np.array(m1.realPixels, dtype=complex).reshape((128, 128))
-        im = np.array(m1.imagPixels, dtype=complex).reshape((128, 128))
+        r = np.array(m1.realPixels, dtype=complex).reshape((CONST_X, CONST_Y))
+        im = np.array(m1.imagPixels, dtype=complex).reshape((CONST_X, CONST_Y))
         data_numpy.append(r + (1j * im))
 
     np.save(
