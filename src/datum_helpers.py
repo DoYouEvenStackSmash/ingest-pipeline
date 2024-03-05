@@ -247,7 +247,7 @@ def jax_apply_d1m2_to_d2m1(D1,D2):
 def jax_mult_matrices(mat_pair):
   if not len(mat_pair[1].shape):
     return mat_pair[0] * mat_pair[1]
-  return jnp.fft.ifft2(jnp.matmul(jnp.fft.fft2(mat_pair[0]), jnp.fft.fft2(mat_pair[1])))
+  return jnp.matmul(mat_pair[0], mat_pair[1])
 
 def complex_tensor_to_components(complex_tensor):
   """
